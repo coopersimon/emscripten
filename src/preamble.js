@@ -1032,7 +1032,11 @@ Module['asm'] = function(global, env, providedBuffer) {
     'element': 'anyfunc'
   });
   env['__memory_base'] = {{{ GLOBAL_BASE }}}; // tell the memory segments where to place themselves
+#if WASM_BACKEND
+  env['__table_base'] = 1; // table starts at 1 by default (even in dynamic linking, for the main module)
+#else
   env['__table_base'] = 0; // table starts at 0 by default (even in dynamic linking, for the main module)
+#endif
 
   var exports = createWasm(env);
 #if ASSERTIONS
