@@ -44,15 +44,17 @@ class Cache(object):
     # if relevant, use a subdir of the cache
     if use_subdir:
       if not shared.Settings.WASM_BACKEND:
-        dirname = os.path.join(dirname, 'asmjs')
+        subdir = 'asmjs'
       else:
-        dirname = os.path.join(dirname, 'wasm')
+        subdir = 'wasm'
         if shared.Settings.WASM_OBJECT_FILES:
-          dirname = os.path.join(dirname, 'obj')
+          subdir += '-obj'
         else:
-          dirname = os.path.join(dirname, 'bc')
+          subdir += '-bc'
         if shared.Settings.RELOCATABLE:
-          dirname = os.path.join(dirname, 'pic')
+          subdir += '-pic'
+      dirname = os.path.join(dirname, subdir)
+
     self.dirname = dirname
     self.debug = 'EM_CACHE_DEBUG' in os.environ
     self.acquired_count = 0

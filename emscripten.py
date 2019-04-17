@@ -685,9 +685,12 @@ def update_settings_glue(metadata):
   shared.Settings.STATIC_BUMP = align_static_bump(metadata)
 
   if shared.Settings.WASM_BACKEND:
-    shared.Settings.WASM_TABLE_SIZE = metadata['tableSize']
     shared.Settings.BINARYEN_FEATURES = metadata['features']
-    if shared.Settings.MAIN_MODULE:
+    shared.Settings.WASM_TABLE_SIZE = metadata['tableSize']
+    if shared.Settings.RELOCATABLE:
+      # When building relocatable output (e.g. MAIN_MODULE) the reported table
+      # size does not include the reserved slot at zero for the null pointer.
+      # Instead we use __table_base to offset the elements by 1.
       shared.Settings.WASM_TABLE_SIZE += 1
 
 
@@ -2252,10 +2255,6 @@ def finalize_wasm(temp_files, infile, outfile, memfile, DEBUG):
     debug_copy(base_source_map, 'base_wasm.map')
 
   cmd = [wasm_emscripten_finalize, base_wasm, '-o', wasm]
-  if shared.Settings.RELOCATABLE:
-    cmd.append('--global-base=0')
-  else:
-    cmd.append('--global-base=%s' % shared.Settings.GLOBAL_BASE)
   # tell binaryen to look at the features section, and if there isn't one, to use MVP
   # (which matches what llvm+lld has given us)
   cmd += ['--detect-features']
@@ -2272,6 +2271,12 @@ def finalize_wasm(temp_files, infile, outfile, memfile, DEBUG):
   if shared.Settings.SIDE_MODULE:
     cmd.append('--side-module')
   else:
+    # Global base is used to calulate the size of the static data segment.  The
+    # value should match the --global-base passed to lld in Building.link_lld()
+    if shared.Settings.RELOCATABLE:
+      cmd.append('--global-base=0')
+    else:
+      cmd.append('--global-base=%s' % shared.Settings.GLOBAL_BASE)
     cmd.append('--initial-stack-pointer=%d' % Memory().stack_base)
   shared.print_compiler_stage(cmd)
   stdout = shared.check_call(cmd, stdout=subprocess.PIPE).stdout
@@ -2353,7 +2358,7 @@ def create_sending_wasm(invoke_funcs, forwarded_json, metadata):
   if shared.Settings.SAFE_HEAP:
     basic_funcs += ['segfault', 'alignfault']
 
-  basic_vars = ['DYNAMICTOP_PTR', 'tempDoublePtr']
+  basic_vars = ['DYNAMICTOP_PTR']
 
   if not shared.Settings.RELOCATABLE:
     global_vars = metadata['externs']

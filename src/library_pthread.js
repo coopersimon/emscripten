@@ -211,7 +211,7 @@ var LibraryPThread = {
       PThread.pthreads = {};
       for (var t in PThread.unusedWorkerPool) {
         var pthread = PThread.unusedWorkerPool[t];
-        if (pthread) {cancelDone
+        if (pthread) {
           PThread.freeThreadData(pthread);
           if (pthread.worker) pthread.worker.terminate();
         }

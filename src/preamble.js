@@ -1033,7 +1033,10 @@ Module['asm'] = function(global, env, providedBuffer) {
   });
   env['__memory_base'] = {{{ GLOBAL_BASE }}}; // tell the memory segments where to place themselves
 #if WASM_BACKEND
-  env['__table_base'] = 1; // table starts at 1 by default (even in dynamic linking, for the main module)
+  // We reserve slot 0 in the table for the NULL function pointer.
+  // This means the __table_base for the main module (even in dynamic linking)
+  // is alwasy 1.
+  env['__table_base'] = 1;
 #else
   env['__table_base'] = 0; // table starts at 0 by default (even in dynamic linking, for the main module)
 #endif

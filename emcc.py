@@ -1086,11 +1086,6 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
         'allocate',
         'getMemory',
       ]
-      if shared.Settings.WASM_BACKEND:
-        shared.Settings.EXPORTED_RUNTIME_METHODS += [
-          'stackSave',
-          'stackRestore',
-        ]
 
       shared.Settings.ALLOW_TABLE_GROWTH = 1
 
