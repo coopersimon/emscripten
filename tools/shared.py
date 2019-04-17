@@ -1837,7 +1837,6 @@ class Building(object):
 
     export_all = False
     if Settings.MAIN_MODULE:
-      cmd.append('-pie')
       export_all = True
     elif Settings.EXPORT_ALL:
       export_all = True
@@ -1861,9 +1860,13 @@ class Building(object):
       for export in Settings.EXPORTED_FUNCTIONS:
         cmd += ['--export', export[1:]] # Strip the leading underscore
 
-    if Settings.SIDE_MODULE:
-      cmd.append('-shared')
-    else:
+    if Settings.RELOCATABLE:
+      if Settings.SIDE_MODULE:
+        cmd.append('-shared')
+      else:
+        cmd.append('-pie')
+
+    if not Settings.SIDE_MODULE:
       cmd += [
         '-z', 'stack-size=%s' % Settings.TOTAL_STACK,
         '--initial-memory=%d' % Settings.TOTAL_MEMORY,
@@ -2015,7 +2018,8 @@ class Building(object):
     try_delete(target)
 
     # Finish link
-    actual_files = unique_ordered(actual_files) # tolerate people trying to link a.so a.so etc.
+    # tolerate people trying to link a.so a.so etc.
+    actual_files = unique_ordered(actual_files)
 
     # check for too-long command line
     link_args = actual_files

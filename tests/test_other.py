@@ -1305,6 +1305,10 @@ int f() {
     run_process([PYTHON, EMCC] + args + libs)
     self.assertContained('result: 42', run_js('a2.out.js'))
 
+  # The fastcomp path will deliberatly ignore duplicate input file in order
+  # to allow "libA.so" on the command line twice. The is not realy .so support
+  # and the .so files are reallly bitcode.
+  @no_wasm_backend('tests legacy .so linking behviour')
   @needs_dlfcn
   def test_redundant_link(self):
     lib = "int mult() { return 1; }"
@@ -1323,7 +1327,7 @@ int f() {
 
     Building.emcc(lib_name, output_filename='libA.so')
 
-    Building.emcc(main_name, ['libA.so'] * 2, output_filename='a.out.js')
+    Building.emcc(main_name, ['libA.so', 'libA.so'], output_filename='a.out.js')
 
     self.assertContained('result: 1', run_js('a.out.js'))
 

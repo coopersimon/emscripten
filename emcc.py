@@ -1087,6 +1087,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
         'getMemory',
       ]
 
+    if shared.Settings.RELOCATABLE:
       shared.Settings.ALLOW_TABLE_GROWTH = 1
 
     # Reconfigure the cache now that settings have been applied. Some settings

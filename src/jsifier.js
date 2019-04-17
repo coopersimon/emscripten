@@ -156,7 +156,7 @@ function JSify(data, functionsOnly) {
             }
           }
         }
-        if (!(MAIN_MODULE || SIDE_MODULE)) {
+        if (!RELOCATABLE) {
           // emit a stub that will fail at runtime
           LibraryManager.library[ident] = new Function("err('missing function: " + ident + "'); abort(-1);");
         } else {
@@ -166,7 +166,7 @@ function JSify(data, functionsOnly) {
             realIdent = realIdent.substr(2);
           }
 
-          var target = (MAIN_MODULE ? '' : 'parent') + "Module['_" + realIdent + "']";
+          var target = (SIDE_MODULE ? 'parent' : '') + "Module['_" + realIdent + "']";
           var assertion = '';
           if (ASSERTIONS) {
             var what = 'function';
