@@ -43,9 +43,7 @@ class Cache(object):
 
     # if relevant, use a subdir of the cache
     if use_subdir:
-      if not shared.Settings.WASM_BACKEND:
-        subdir = 'asmjs'
-      else:
+      if shared.Settings.WASM_BACKEND:
         subdir = 'wasm'
         if shared.Settings.WASM_OBJECT_FILES:
           subdir += '-obj'
@@ -53,6 +51,8 @@ class Cache(object):
           subdir += '-bc'
         if shared.Settings.RELOCATABLE:
           subdir += '-pic'
+      else:
+        subdir = 'asmjs'
       dirname = os.path.join(dirname, subdir)
 
     self.dirname = dirname
