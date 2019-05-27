@@ -42,6 +42,9 @@ extern "C" {
 		}
 		return queue;
 	}
+
+	int32_t _emscripten_fetch_get_response_headers_length(int32_t);
+	int32_t _emscripten_fetch_get_response_headers(int32_t, int32_t, int32_t);
 }
 
 void emscripten_proxy_fetch(emscripten_fetch_t *fetch)
@@ -76,7 +79,7 @@ emscripten_fetch_t *emscripten_fetch(emscripten_fetch_attr_t *fetch_attr, const 
 	if (isMainBrowserThread && synchronous && (performXhr || readFromIndexedDB || writeToIndexedDB))
 	{
 #ifdef FETCH_DEBUG
-		EM_ASM(err('emscripten_fetch("' + UTF8ToString($0) + '") failed! Synchronous blocking XHRs and IndexedDB operations are not supported on the main browser thread. Try dropping the EMSCRIPTEN_FETCH_SYNCHRONOUS flag, or run with the linker flag --proxy-to-worker to decouple main C runtime thread from the main browser thread.'), 
+		EM_ASM(err('emscripten_fetch("' + UTF8ToString($0) + '") failed! Synchronous blocking XHRs and IndexedDB operations are not supported on the main browser thread. Try dropping the EMSCRIPTEN_FETCH_SYNCHRONOUS flag, or run with the linker flag --proxy-to-worker to decouple main C runtime thread from the main browser thread.'),
 			url);
 #endif
 		return 0;
@@ -96,6 +99,7 @@ emscripten_fetch_t *emscripten_fetch(emscripten_fetch_attr_t *fetch_attr, const 
 	fetch->__attributes.onerror = fetch_attr->onerror;
 	fetch->__attributes.onsuccess = fetch_attr->onsuccess;
 	fetch->__attributes.onprogress = fetch_attr->onprogress;
+	fetch->__attributes.onreadystatechange = fetch_attr->onreadystatechange;
 #define STRDUP_OR_ABORT(s, str_to_dup)		\
 	if (str_to_dup)							\
 	{										\
@@ -184,7 +188,7 @@ EMSCRIPTEN_RESULT emscripten_fetch_wait(emscripten_fetch_t *fetch, double timeou
 			if (ret == -ETIMEDOUT) return EMSCRIPTEN_RESULT_TIMED_OUT;
 			proxyState = emscripten_atomic_load_u32(&fetch->__proxyState);
 		}
-		else 
+		else
 		{
 			EM_ASM({ console.error('fetch: emscripten_fetch_wait failed: main thread cannot block to wait for long periods of time! Migrate the application to run in a worker to perform synchronous file IO, or switch to using asynchronous IO.') });
 			return EMSCRIPTEN_RESULT_FAILED;
@@ -231,6 +235,67 @@ EMSCRIPTEN_RESULT emscripten_fetch_close(emscripten_fetch_t *fetch)
 
 	fetch_free(fetch);
 	return EMSCRIPTEN_RESULT_SUCCESS;
+}
+
+size_t emscripten_fetch_get_response_headers_length(emscripten_fetch_t *fetch)
+{
+	if (!fetch || fetch->readyState < 2) return 0;
+
+	return (size_t)_emscripten_fetch_get_response_headers_length((int32_t)fetch->id);
+}
+
+size_t emscripten_fetch_get_response_headers(emscripten_fetch_t *fetch, char *dst, size_t dstSizeBytes)
+{
+	if (!fetch || fetch->readyState < 2) return 0;
+
+	return (size_t)_emscripten_fetch_get_response_headers((int32_t)fetch->id, (int32_t)dst, (int32_t)dstSizeBytes);
+}
+
+char **emscripten_fetch_unpack_response_headers(const char *headersString)
+{
+	// Get size of output array and allocate.
+	size_t numHeaders = 0;
+	for(const char *pos = strchr(headersString, '\n'); pos; pos = strchr(pos + 1, '\n'))
+	{
+		numHeaders++;
+	}
+	char **unpackedHeaders = (char**)malloc(sizeof(char*) * ((numHeaders * 2) + 1));
+	unpackedHeaders[numHeaders * 2] = NULL;
+
+	// Allocate each header.
+	const char *rowStart = headersString;
+	const char *rowEnd = strchr(rowStart, '\n');
+	for(size_t headerNum = 0; rowEnd; headerNum += 2)
+	{
+		const char *split = strchr(rowStart, ':');
+		size_t headerSize = (size_t)split - (size_t)rowStart;
+		char* header = (char*)malloc(headerSize + 1);
+		strncpy(header, rowStart, headerSize);
+		header[headerSize] = '\0';
+
+		size_t valueSize = (size_t)rowEnd - (size_t)split;
+		char* value = (char*)malloc(valueSize + 1);
+		strncpy(value, split + 1, valueSize);
+		value[valueSize] = '\0';
+
+		unpackedHeaders[headerNum] = header;
+		unpackedHeaders[headerNum+1] = value;
+
+		rowStart = rowEnd + 1;
+		rowEnd = strchr(rowStart, '\n');
+	}
+
+	return unpackedHeaders;
+}
+
+void emscripten_fetch_free_unpacked_response_headers(char **unpackedHeaders)
+{
+	if(unpackedHeaders)
+	{
+		for(size_t i = 0; unpackedHeaders[i]; ++i)
+			free((void*)unpackedHeaders[i]);
+		free((void*)unpackedHeaders);
+	}
 }
 
 static void fetch_free(emscripten_fetch_t *fetch)
